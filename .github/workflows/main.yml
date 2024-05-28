@@ -34,6 +34,9 @@ jobs:
       - name: Récupérer le code
         uses: actions/checkout@v2
 
+      - name: Login to DockerHub
+        run: docker login -u ${{ secrets.USR_DOCKERHUB }} -p ${{ secrets.PWD_DOCKERHUB }}
+
       - name: Construire et pousser l'image backend
         uses: docker/build-push-action@v3
         with:
@@ -54,4 +57,3 @@ jobs:
           context: ./frontend # Chemin vers le répertoire contenant le Dockerfile httpd
           tags: ${{ secrets.USR_DOCKERHUB }}/tp1-httpd:latest
           push: ${{ github.ref == 'refs/heads/main' }}
-          
