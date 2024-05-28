@@ -21,4 +21,4 @@ jobs:
           java-version: '17'
 
       - name: Construction et test avec Maven
-        run: mvn clean verify
+        run: mvn clean verify --file D:\cours\4A\DevOps\TP1\backend\simple-api-student-main
