@@ -14,9 +14,10 @@ jobs:
       - name: Checkout du code GitHub
         uses: actions/checkout@v2.5.0
 
-      - name: Configuration de JDK 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
+          distribution: 'temurin'
           java-version: '17'
 
       - name: Construction et test avec Maven
