@@ -54,3 +54,4 @@ jobs:
           context: ./frontend # Chemin vers le répertoire contenant le Dockerfile httpd
           tags: ${{ secrets.USR_DOCKERHUB }}/tp1-httpd:latest
           push: ${{ github.ref == 'refs/heads/main' }}
+          
