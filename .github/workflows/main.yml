@@ -38,16 +38,16 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: ./backend # Chemin vers le répertoire contenant le Dockerfile backend
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-backend:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp1-backend:latest
 
       - name: Construire et pousser l'image de la base de données
         uses: docker/build-push-action@v3
         with:
           context: ./DB # Chemin vers le répertoire contenant le Dockerfile de la base de données
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-database:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp1-database:latest
 
       - name: Construire et pousser l'image httpd
         uses: docker/build-push-action@v3
         with:
           context: ./frontend # Chemin vers le répertoire contenant le Dockerfile httpd
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-httpd:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp1-httpd:latest
