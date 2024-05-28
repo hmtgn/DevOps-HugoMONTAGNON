@@ -10,6 +10,9 @@ on:
 jobs:
   test-backend:
     runs-on: ubuntu-22.04
+    env:
+      DOCKER_USERNAME: ${{ secrets.USR_DOCKERHUB }}
+      DOCKER_PASSWORD: ${{ secrets.PWD_DOCKERHUB }}
     steps:
       - name: Checkout du code GitHub
         uses: actions/checkout@v2.5.0
@@ -22,3 +25,29 @@ jobs:
 
       - name: Construction et test avec Maven
         run: mvn clean verify --file backend/simple-api-student-main
+
+  build-and-push-docker-images:
+    runs-on: ubuntu-22.04
+    needs: test-backend
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v2
+
+      - name: Construire et pousser l'image backend
+        uses: docker/build-push-action@v3
+        with:
+          context: ./backend # Chemin vers le répertoire contenant le Dockerfile backend
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-backend:latest
+
+      - name: Construire et pousser l'image de la base de données
+        uses: docker/build-push-action@v3
+        with:
+          context: ./DB # Chemin vers le répertoire contenant le Dockerfile de la base de données
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-database:latest
+
+      - name: Construire et pousser l'image httpd
+        uses: docker/build-push-action@v3
+        with:
+          context: ./frontend # Chemin vers le répertoire contenant le Dockerfile httpd
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/tp-devops-httpd:latest
