@@ -9,10 +9,10 @@
   vars:
       ansible_python_interpreter: /usr/bin/python3
 
-- name: Run BDD
+- name: Run DB
   docker_container:
     state: started
-    name: mypostgresqlfinal
+    name: database
     image: hmtgn/tp1-database
     networks: 
       - name: "app-network"
