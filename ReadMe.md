@@ -175,3 +175,35 @@ To push an image to Docker Hub, use the following command:
     ```sh
     docker push USERNAME/my-database:1.0
 
+## TP2 - Hugo MONTAGNON
+
+## TP3 - Hugo MONTAGNON
+
+# Readme: Inventory and Base Commands
+
+## Inventory Setup
+
+### Location
+
+By default, Ansible's inventory is stored in `/etc/ansible/hosts`. However, for this project, we've created a project-specific inventory file located at `TP/ansible/inventories/setup.yml`.
+
+### Content
+
+The inventory file `setup.yml` is structured as follows:
+
+```yaml
+all:
+  vars:
+    ansible_user: centos
+    ansible_ssh_private_key_file: /home/hmontagnon/.ssh/id_rsa
+  children:
+    prod:
+      hosts: hugo.montagnon.takima.cloud
+```
+
+`ansible_user`: Specifies the user to use for SSH connections.
+
+`ansible_ssh_private_key_file`: Specifies the path to the SSH private key file. (path relate to ubuntu)
+
+`prod` : Group containing the hosts to be managed by Ansible.
+

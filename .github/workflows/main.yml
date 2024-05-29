@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - develop
   pull_request:
 
 jobs:
@@ -42,7 +41,7 @@ jobs:
       - name: Construire et pousser l'image backend
         uses: docker/build-push-action@v3
         with:
-          context: ./backend # Chemin vers le répertoire contenant le Dockerfile backend
+          context: ./backend/simple-api-student-main # Chemin vers le répertoire contenant le Dockerfile backend
           tags: ${{ secrets.USR_DOCKERHUB }}/tp1-backend:latest
           push: ${{ github.ref == 'refs/heads/main' }}
 

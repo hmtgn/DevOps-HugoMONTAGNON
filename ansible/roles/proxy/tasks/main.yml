@@ -1,0 +1,24 @@
+---
+# tasks file for roles/proxy
+- name: Pull the proxy container
+  docker_image:
+    name: hmtgn/tp1-httpd
+    tag: latest
+    source: pull
+  vars:
+      ansible_python_interpreter: /usr/bin/python3
+ 
+- name: Run the proxy container
+  docker_container:
+    name: http
+    image: hmtgn/tp1-httpd
+    ports:
+      - "80:80"
+    networks:
+      - name: "app-network"
+  vars:
+      ansible_python_interpreter: /usr/bin/python3
+
+
+
+

@@ -1,0 +1,12 @@
+#ansible/playbook.yml
+
+- hosts: all
+  gather_facts: false
+  become: true
+
+  roles:
+    - docker
+    - network
+    - database
+    - app
+    - proxy
