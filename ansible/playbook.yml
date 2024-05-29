@@ -8,5 +8,5 @@
     - docker
     - network
     - database
-    - app
+    - backend
     - proxy
