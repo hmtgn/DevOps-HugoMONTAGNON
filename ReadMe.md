@@ -234,8 +234,16 @@ jobs:
         #run: mvn clean verify --file backend/simple-api-student-main
         run: mvn -B verify sonar:sonar -Dsonar.projectKey=devops-tp2-2024_tp2 -Dsonar.organization=devops-tp2-2024 -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=${{ secrets.SONAR_TOKEN }}  --file backend/simple-api-student-main
 
+  
+```
+Now, as soon as you push the project into github, github action will launch and run unit and integration tests. If everything is validated and turns green, it's OK. If not, you'll need to check for errors in the github actions tab.
 
-  build-and-push-docker-images:
+### Setup pipline to save images in dockerhub
+
+We're now going to complete our `main.yml` so that we can push our images, which we've just put on github, to dockerhub automatically. To do this, we'll add this section to our `main.yml`:
+
+```yml
+build-and-push-docker-images:
     runs-on: ubuntu-22.04
     needs: test-backend
 
@@ -266,9 +274,28 @@ jobs:
           context: ./frontend # Chemin vers le répertoire contenant le Dockerfile httpd
           tags: ${{ secrets.USR_DOCKERHUB }}/tp1-httpd:latest
           push: ${{ github.ref == 'refs/heads/main' }}
-  
+```
+***/!\ Don't forget to define the secret variables in github: `USR_DOCKERHUB` and `PWD_DOCKERHUB` so that the connection to the dockerhub account can be made.***
+
+### Setup Quality Gate
+
+Quality is here to make sure your code will be maintainable and determine every unsecured block. It helps you produce better and tested features, and it will also prevent having dirty code pushed inside your main branch.
+
+For this purpose, we are going to use SonarCloud, a cloud solution that makes analysis and reports of your code. This is a useful tool that everyone should use in order to learn java best practices.
+
+To do this, you must follow these different steps: 
+
+- You must create an organization.
+
+- And keep the project key and the organization key you will need it later.
+
+- You need to add this script to your main.yml for launch sonar at each commit with this line:
+
+```yml
+run: mvn -B verify sonar:sonar -Dsonar.projectKey=devops-tp2-2024_tp2 -Dsonar.organization=devops-tp2-2024 -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=${{ secrets.SONAR_TOKEN }}  --file backend/simple-api-student-main
 ```
 
+Now as soon as a github push is initiated, once the unit and integration tests complete the performance will be sent directmenet to sonar which we ssitura notamenet the technical debt
 
 
 ## TP3 - Hugo MONTAGNON
@@ -660,3 +687,50 @@ Edit `roles/proxy/tasks/main.yml` :
     - proxy
 ```
 
+## Continuous Deployment
+
+The aim now is to automate deployment of the application via github action and a new `deploy.yml` file like this:
+
+```yml
+name: Deploy
+on:
+  workflow_run:
+    workflows: ["CI devops 2024"]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2.5.0
+
+      - name: Setup SSH and known hosts
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Disable host key checking
+        run: echo "ANSIBLE_HOST_KEY_CHECKING=False" >> $GITHUB_ENV
+
+      - name: Deploy to production server
+        run: |
+          ansible-playbook -i ansible/inventories/setup.yml ansible/playbook.yml
+```
+
+The latter will be launched after the first main.yml file on ggithub action and will repeat all the steps explained above. 
+
+***/!\ However, the content of the ssh key must be added to the secret variables so that the connection can be established.*** 
+
+
+
+## Author
+
+This project was developed by [Hugo Montagnon](https://github.com/hmtgn).
