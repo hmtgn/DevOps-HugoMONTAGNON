@@ -81,7 +81,7 @@
 
 A multistage build in Docker allows you to use multiple `FROM` statements in a single Dockerfile, each representing a separate build stage. This is useful for optimizing Docker images by separating the build environment from the runtime environment. It helps reduce the size of the final image by discarding unnecessary build dependencies and artifacts.
 
-    ```sh
+ ```sh
     # Build
     FROM maven:3.8.6-amazoncorretto-17 AS myapp-build
     ENV MYAPP_HOME /opt/myapp
@@ -97,6 +97,7 @@ A multistage build in Docker allows you to use multiple `FROM` statements in a s
     COPY --from=myapp-build $MYAPP_HOME/target/*.jar $MYAPP_HOME/myapp.jar
 
     ENTRYPOINT java -jar myapp.jar
+```
 
 #### Explanation of each step in the Dockerfile:
 
@@ -142,8 +143,9 @@ The [docker-compose.yml](docker-compose.yml) file defines the configuration for 
 
 To start all the services, run the following command at the root of the project:
 
-    ```sh
-    docker-compose up --build
+```sh
+docker-compose up --build
+```
 
 ### 1-5 Document your publication commands and published images in dockerhub.
 
@@ -157,33 +159,121 @@ Vous aurez besoin d'un compte Docker Hub.
 
 To connect to your Docker Hub account, use the following command:
 
-    ```sh
-    docker login
-
+```sh
+docker login
+```
 
 #### Étape 2 : Tag Your Image
 
 So far, we've only used the latest tag. Now that we want to publish our image, let's add a meaningful version to our images. Replace USERNAME with your Docker Hub username.
 
-    ```sh
-    docker tag my-database USERNAME/my-database:1.0
+```sh
+docker tag my-database USERNAME/my-database:1.0
+```
 
 #### Étape 3 : Push your image
 
 To push an image to Docker Hub, use the following command:
 
-    ```sh
-    docker push USERNAME/my-database:1.0
+```sh
+docker push USERNAME/my-database:1.0
+```
 
 ## TP2 - Hugo MONTAGNON
 
+### Goals
+
+This project aims to set up a complete pipeline workflow for testing and delivering a software application using various tools to build, test automatically, and check code quality.
+
+### Setup GitHub Actions
+
+Most of the CI services use a yaml file (except Jenkins that uses a… Groovy file…) to describe the expected steps to be done over the pipeline execution. Go on and create your first main.yml file into your project’s root directory.
+
+For those who are not familiar with Maven and Java project structures, here is the command for building and running your tests:
+
+```sh
+mvn clean verify --files /path/to/pom.xml
+```
+
+***PS: Installation on Windows is a little more complicated to run locally. You'll need to download maven from their site and add the /bin path to the PC environment variables.***
+
+This allows us to build and run local unit and integration tests directly inside your cash. 
+
+**- First you create a .github/workflows directory in your repository on GitHub**
+
+Put your main.yml inside workflows.
+
+The main.yml holds the architecture of your pipeline. Each job will represent a step of what you want to do. Each job will be run in parallel unless a link is specified.
+
+```yml
+name: CI devops 2024
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-22.04
+    env:
+      DOCKER_USERNAME: ${{ secrets.USR_DOCKERHUB }}
+      DOCKER_PASSWORD: ${{ secrets.PWD_DOCKERHUB }}
+    steps:
+      - name: Checkout du code GitHub
+        uses: actions/checkout@v2.5.0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Construction et test avec Maven
+        #run: mvn clean verify --file backend/simple-api-student-main
+        run: mvn -B verify sonar:sonar -Dsonar.projectKey=devops-tp2-2024_tp2 -Dsonar.organization=devops-tp2-2024 -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=${{ secrets.SONAR_TOKEN }}  --file backend/simple-api-student-main
+
+
+  build-and-push-docker-images:
+    runs-on: ubuntu-22.04
+    needs: test-backend
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v2
+
+      - name: Login to DockerHub
+        run: docker login -u ${{ secrets.USR_DOCKERHUB }} -p ${{ secrets.PWD_DOCKERHUB }}
+
+      - name: Construire et pousser l'image backend
+        uses: docker/build-push-action@v3
+        with:
+          context: ./backend/simple-api-student-main # Chemin vers le répertoire contenant le Dockerfile backend
+          tags: ${{ secrets.USR_DOCKERHUB }}/tp1-backend:latest
+          push: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Construire et pousser l'image de la base de données
+        uses: docker/build-push-action@v3
+        with:
+          context: ./DB # Chemin vers le répertoire contenant le Dockerfile de la base de données
+          tags: ${{ secrets.USR_DOCKERHUB }}/tp1-database:latest
+          push: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Construire et pousser l'image httpd
+        uses: docker/build-push-action@v3
+        with:
+          context: ./frontend # Chemin vers le répertoire contenant le Dockerfile httpd
+          tags: ${{ secrets.USR_DOCKERHUB }}/tp1-httpd:latest
+          push: ${{ github.ref == 'refs/heads/main' }}
+  
+```
+
+
+
 ## TP3 - Hugo MONTAGNON
 
-# Readme: Inventory and Base Commands
-
 ## Inventory Setup
-
-### Location
 
 By default, Ansible's inventory is stored in `/etc/ansible/hosts`. However, for this project, we've created a project-specific inventory file located at `TP/ansible/inventories/setup.yml`.
 
@@ -206,4 +296,367 @@ all:
 `ansible_ssh_private_key_file`: Specifies the path to the SSH private key file. (path relate to ubuntu)
 
 `prod` : Group containing the hosts to be managed by Ansible.
+
+
+### Testing Inventory
+
+To verify that Ansible can communicate with your hosts, use the ping module:
+
+```sh
+ansible all -i inventories/setup.yml -m ping
+```
+
+### Retrieving OS Distribution
+
+To get information about the OS distribution of your hosts, use the setup module with a filter:
+
+```sh
+ansible all -i inventories/setup.yml -m setup -a "filter=ansible_distribution*"
+```
+
+### Removing Apache HTTP Server
+
+To remove the Apache HTTP server:
+
+```sh
+ansible all -i inventories/setup.yml -m yum -a "name=httpd state=absent" --become
+```
+Running this command again will not change the server state if httpd is already removed, demonstrating Ansible's idempotency.
+
+## Playbooks
+
+### First Playbook
+
+Create a file named ansible/playbook.yml in the main directory with the following content:
+
+```yml
+- hosts: all
+  gather_facts: false
+  become: true
+```
+
+Run the playbook using the following command:
+
+```sh
+ansible-playbook -i inventories/setup.yml playbook.yml
+```
+
+Before we can check our playbook for syntax errors before running it:
+
+```sh
+ansible-playbook -i inventories/setup.yml playbook.yml --syntax-check
+```
+
+The `First Playbook` is mainly used to test the connection between Ansible and the hosts defined in your inventory. This is an essential first step to ensure that SSH configuration and other connection parameters are correct, before proceeding with more complex tasks.
+
+### Advanced Playbook
+
+Let's create a more advanced playbook to install Docker on your server
+Create a file named docker-install.yml in the directory ansible/ with the following content:
+
+```yml
+- hosts: all
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Install device-mapper-persistent-data
+      yum:
+        name: device-mapper-persistent-data
+        state: latest
+
+    - name: Install lvm2
+      yum:
+        name: lvm2
+        state: latest
+
+    - name: Add Docker repository
+      command:
+        cmd: sudo yum-config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+    - name: Install Docker
+      yum:
+        name: docker-ce
+        state: present
+
+    - name: Install Python3
+      yum:
+        name: python3
+        state: present
+
+    - name: Install Docker with Python3
+      pip:
+        name: docker
+        executable: pip3
+      vars:
+        ansible_python_interpreter: /usr/bin/python3
+
+    - name: Ensure Docker is running
+      service:
+        name: docker
+        state: started
+        tags: docker
+```
+Run the advanced playbook using the following command:
+
+```sh
+ansible-playbook -i inventories/setup.yml docker-install.yml
+```
+
+`docker-install.yml` is an Ansible playbook designed to automate the installation of Docker on servers managed by Ansible. It ensures that Docker and its dependencies are correctly installed and configured on target hosts. 
+
+### Using Roles
+
+Roles in Ansible are a method of structuring playbooks and reusing code. They allow you to group related tasks, handlers, variables, files, templates and other resources into logical sets. 
+
+So let's create a Docker role and move the installation task there:
+
+```sh 
+ansible-galaxy init roles/docker
+```
+
+In this project we will only keep the tasks, the others have been suppressed as useless.
+
+### Move Tasks to the Role
+
+Edit `roles/docker/tasks/main.yml`
+
+```yml
+- name: Install device-mapper-persistent-data
+  yum:
+    name: device-mapper-persistent-data
+    state: latest
+
+- name: Install lvm2
+  yum:
+    name: lvm2
+    state: latest
+
+- name: Add Docker repository
+  command:
+    cmd: sudo yum-config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+- name: Install Docker
+  yum:
+    name: docker-ce
+    state: present
+
+- name: Install Python3
+  yum:
+    name: python3
+    state: present
+
+- name: Install Docker with Python3
+  pip:
+    name: docker
+    executable: pip3
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+- name: Ensure Docker is running
+  service:
+    name: docker
+    state: started
+    tags: docker
+```
+This playbook automates the installation and setup of Docker on a CentOS system. It first installs necessary dependencies (device-mapper-persistent-data and lvm2), adds the Docker repository, installs Docker, and ensures that Docker is running. 
+
+It also installs Python3 and the Docker Python module, allowing for further Docker management through Python scripts or Ansible modules that require Python3.
+
+### Use the Role in the Playbook
+
+Edit playbook.yml to include the Docker role:
+
+```yml
+- hosts: all
+  gather_facts: false
+  become: true
+
+  roles:
+    - docker
+```
+
+Run the playbook using the following command:
+
+```sh
+ansible-playbook -i inventories/setup.yml playbook.yml
+```
+
+## Deploy your App
+
+ ***We apply the same role principle to download images and launch docker containers directly from a dockerhub account.***
+
+### **Tree:**
+
+    roles/
+    └── docker/
+        ├── tasks/
+        │   └── main.yml
+        network/
+        ├── tasks/
+        │   └── main.yml
+        database/
+        ├── tasks/
+        │   └── main.yml
+        backend/
+        ├── tasks/
+        │   └── main.yml
+        proxy/
+        ├── tasks/
+        │   └── main.yml
+
+#### To install docker
+
+Edit `roles/docker/tasks/main.yml` :
+
+```yml
+---
+# tasks file for roles/docker
+# Advanced Playbook for Docker Installation
+
+# Install Docker
+
+
+- name: Install device-mapper-persistent-data
+  yum:
+    name: device-mapper-persistent-data
+    state: latest
+
+- name: Install lvm2
+  yum:
+    name: lvm2
+    state: latest
+
+- name: Add Docker repository
+  command: sudo yum-config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+
+- name: Install Docker
+  yum:
+    name: docker-ce
+    state: present
+
+- name: Install Python 3
+  yum:
+    name: python3
+    state: present
+
+- name: Install docker package for Python 3
+  pip:
+    name: docker
+    executable: pip3
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+- name: Ensure Docker is running
+  service: name=docker state=started
+  tags: docker
+
+- name: Login to Docker Hub
+  docker_login:
+    username: hmtgn
+    password: Cailloux123?
+    reauthorize: yes
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+```
+
+#### To create network
+
+Edit `roles/network/tasks/main.yml` :
+
+```yml
+- name: Create application network
+  docker_network:
+    name: app-network
+    state: present
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+```
+
+#### To launch database
+
+Edit `roles/database/tasks/main.yml` :
+
+```yml
+- name: Pull the BDD image
+  docker_image:
+    name: hmtgn/tp1-database
+    tag: latest
+    source: pull
+  vars:
+      ansible_python_interpreter: /usr/bin/python3
+
+- name: Run DB
+  docker_container:
+    state: started
+    name: database
+    image: hmtgn/tp1-database
+    networks: 
+      - name: "app-network"
+  vars:
+      ansible_python_interpreter: /usr/bin/python3
+```
+#### To launch app
+
+Edit `roles/backend/tasks/main.yml` :
+
+```yml
+- name: Pull the API Image
+  docker_image:
+    name: hmtgn/tp1-backend
+    tag: latest
+    source: pull
+  vars:
+      ansible_python_interpreter: /usr/bin/python3
+
+- name: Run API
+  docker_container:
+    name: backend
+    image: hmtgn/tp1-backend
+    networks: 
+      - name: "app-network"
+    state: started
+  vars:
+      ansible_python_interpreter: /usr/bin/python3
+```
+
+#### To launch proxy
+
+Edit `roles/proxy/tasks/main.yml` :
+
+```yml
+- name: Pull the proxy container
+  docker_image:
+    name: hmtgn/tp1-httpd
+    tag: latest
+    source: pull
+  vars:
+      ansible_python_interpreter: /usr/bin/python3
+ 
+- name: Run the proxy container
+  docker_container:
+    name: httpd
+    image: hmtgn/tp1-httpd
+    ports:
+      - "80:80"
+    networks:
+      - name: "app-network"
+  vars:
+      ansible_python_interpreter: /usr/bin/python3
+```
+
+#### Finally, the playbook must be modified
+
+```yml
+- hosts: all
+  gather_facts: false
+  become: true
+
+  roles:
+    - docker
+    - network
+    - database
+    - backend
+    - proxy
+```
 
